@@ -1,0 +1,196 @@
+<div class="row">
+	<div class="col-xs-12">
+		<div class="box">
+			<div class="box-header">
+				<h3 class="box-title">角色管理</h3>
+
+				<div class="box-tools">
+					<div class="input-group input-group-sm" style="width: 350px;">
+						<input type="text" name="table_search" id="searchNameId"
+							class="form-control pull-right" placeholder="角色名">
+
+						<div class="input-group-btn">
+							<button type="button" class="btn btn-default btn-search">
+								<i class="fa fa-search"></i>
+							</button>
+							<button type="button" class="btn btn-default btn-delete">删除</button>
+							<button type="button" class="btn btn-default btn-add">添加</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- /.box-header -->
+			<div class="box-body table-responsive no-padding">
+				<form>
+					<table class="table table-hover">
+						<thead>
+							<tr>
+								<th><input type="checkbox" id="checkAll">全选</th>
+								<th>角色名称</th>
+								<th>创建时间</th>
+								<th>修改时间</th>
+								<th>操作名称</th>
+							</tr>
+						</thead>
+						<tbody id="tbodyId">
+						</tbody>
+					</table>
+				</form>
+			</div>
+			<!-- /.box-body -->
+			<div id="pageId" class="box-footer clearfix"></div>
+		</div>
+		<!-- /.box -->
+	</div>
+</div>
+<script type="text/javascript">
+	$(function(){
+	   // 异步加载角色列表页 
+	   $("#pageId").load("role/pageUI.do", function(){
+		 	//异步加载服务端数据然后进行呈现
+			doGetObjects();
+	   }); 
+	   
+	   $("#checkAll").change(function(){
+			doCheckAll($(this).prop("checked"));
+		});
+	   
+	   $(".input-group-btn")
+		.on("click", ".btn-search", doQueryObjects)
+		.on("click", ".btn-add", doAddOrUpdate)
+		.on("click", ".btn-delete", doDeleteObject);
+   	});
+	
+	/*核心业务：发起异步请求，通过返回结果刷新页面*/
+	function doGetObjects() {
+		// 开始显示列表
+		var url = "role/doFindPageObjects.do";
+		var pageCurrent = $("#pageId").data("pageCurrent");
+		var name = $("#searchNameId").val();
+		var params = {"pageCurrent":!pageCurrent?1:pageCurrent,
+					  "name":name};
+		var type = "json";
+		$.post(url, params, function(result){
+			if(result.state == 1) {		
+				setPagination(result.data);
+		   		setTableBodyRows(result.data.list);
+		   } else {
+			   alert(result.message);
+		   }
+		}, type);
+	}
+	
+	function setTableBodyRows(data) {
+		var tbody = $("#tbodyId");
+		tbody.empty();
+		for(var i=0;i<data.length;i++)　{
+			var tr = $("<tr></tr>");
+			//tr对象上绑定一个id值(唯一标识这行记录)
+			tr.data("id",data[i].id);
+			var tds = $("<td><input type='checkbox' name='checkItem' value='"+data[i].id+"'></td>"+
+					"<td>"+data[i].name+"</td>"+
+					"<td>"+data[i].createdTime+"</td>"+
+					"<td>"+data[i].modifiedTime+"</td>"+
+					"<td><button type='button' class='btn btn-default btn-update'>更新</button></td>");
+			tr.append(tds);
+			tbody.append(tr);
+		}
+		
+		$("input[name='checkItem']").click(doChangeCheckAllState);
+		$(".btn-update").click(doAddOrUpdate);
+	}
+
+	function doCheckAll(state) {
+		$("input[name='checkItem']").each(function(){
+			$(this).prop("checked",state);
+		});
+	}
+	
+	function doChangeCheckAllState() {
+		var flag = true;
+		$("input[name='checkItem']").each(function(){
+			flag = flag&&$(this).prop("checked");
+		});
+		$("#checkAll").prop("checked", flag);
+	}
+	
+	function doQueryObjects() {
+		// 只需执行doGetObjects即可
+		$("#pageId").data("pageCurrent", 1);
+		doGetObjects();
+	}
+	
+	function doAddOrUpdate() {
+		var title;
+		if($(this).hasClass("btn-add")) {
+			title = "添加角色";
+			doLoadEditPage(title);
+		} else {
+			title = "修改角色";
+			// 先获取该角色的最新数据
+			var url = "role/doFindObjectById.do";
+			var id = $(this).parents("tr").data("id");
+			var params = {"id":id};
+			$.post(url, params, function(result){
+				if (result.state == 1) {
+					$(".container-fluid").data("roleData", result.data);
+					doLoadEditPage(title);
+				} else {
+					alert(result.message);
+				}
+			});
+		}
+	}
+	
+	function doLoadEditPage(title) {
+		$(".container-fluid").load("role/editUI.do", function(){
+			// 加载编辑页面完成
+			$(".box-title").html(title);
+		}); 
+	}
+	
+	function doDeleteObject() {
+		var ids = doGetCheckedIds();
+		if(ids.length==0) {
+			alert("请选择需要删除的数据")
+			return;
+		}
+		
+		var flag = confirm("确定删除选中角色？");
+		if(!flag) return;
+		
+		// 开始进行删除操作
+		var url = "role/doDeleteObjects.do";
+		var params = {"ids":ids};
+		$.post(url, params, function(result){
+			if (result.state == 1) {
+				doGetObjects();
+			} else {
+				alert(result.message);
+			}
+		});
+	}
+	
+	function doGetCheckedIds() {
+		var array = [];
+		$("input[name='checkItem']").each(function(){
+			if($(this).prop("checked")) {
+				array.push($(this).val());
+			}
+		});
+		// 传给服务端的时候需要将其转换成字符串
+		return array.toString();
+	}
+	
+</script>
+
+
+
+
+
+
+
+
+
+
+

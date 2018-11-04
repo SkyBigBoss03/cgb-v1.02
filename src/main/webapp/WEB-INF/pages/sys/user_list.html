@@ -1,0 +1,424 @@
+<div class="row">
+	<div class="col-xs-12">
+		<div class="box">
+			<div class="box-header">
+				<h3 class="box-title">用户管理</h3>
+
+				<div class="box-tools">
+					<div class="input-group input-group-sm" style="width: 350px;">
+						<input type="text" name="table_search" id="searchNameId"
+							class="form-control pull-right" placeholder="用户名">
+
+						<div class="input-group-btn">
+							<button type="button" class="btn btn-default btn-search">
+								<i class="fa fa-search"></i>
+							</button>
+							<button type="button" class="btn btn-default btn-add">添加</button>
+							<button type="button" class="btn btn-default btn-update">修改</button>
+							<button type="button" class="btn btn-default btn-export-excel">导出到Excel</button>
+							<button type="button" class="btn btn-default btn-export-pdf">导出到pdf</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- /.box-header -->
+			<div class="box-body table-responsive no-padding">
+				<table class="table table-hover">
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>用户名</th>
+							<th>邮箱</th>
+							<th>手机号</th>
+							<th>状态</th>
+							<th>创建时间</th>
+							<th>修改时间</th>
+							<th>操作</th>
+						</tr>
+					</thead>
+					<tbody id="tbodyId"></tbody>
+				</table>
+			</div>
+			<div id="pageId" class="box-footer clearfix"></div>
+			<!-- /.box-body -->
+		</div>
+		<!-- /.box -->
+		<!-- 模态框（Modal） -->
+		<div class="modal fade" id="myModal" tabindex="-1" role="dialog"
+			aria-labelledby="myModalLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="box box-info">
+						<div class="box-header with-border">
+							<h3 class="box-title">添加用户</h3>
+						</div>
+						<!-- /.box-header -->
+						<!-- form start -->
+						<form class="form-horizontal">
+							<div class="box-body">
+								<div class="form-group">
+									<label for="usernameId" class="col-sm-2 control-label">用户名</label>
+									<div class="col-sm-10">
+										<input type="text" class="form-control" id="usernameId">
+									</div>
+								</div>
+								<div class="form-group">
+									<label for="passwordId" class="col-sm-2 control-label">密码</label>
+
+									<div class="col-sm-10">
+										<input type="password" class="form-control" id="passwordId">
+									</div>
+								</div>
+								<div class="form-group">
+									<label for="emailId" class="col-sm-2 control-label">邮箱</label>
+									<div class="col-sm-10">
+										<input type="text" class="form-control" id="emailId">
+									</div>
+								</div>
+								<div class="form-group">
+									<label for="phoneId" class="col-sm-2 control-label">手机号</label>
+									<div class="col-sm-10">
+										<input type="text" class="form-control" id="phoneId">
+									</div>
+								</div>
+								<div class="form-group">
+									<label for="rolesId" class="col-sm-2 control-label">角色</label>
+									<div class="col-sm-10" id="rolesId"></div>
+								</div>
+							</div>
+							<!-- /.box-body -->
+							<div class="box-footer">
+								<input type="reset" name="reset" style="display: none" />
+								<button type="button" class="btn btn-default btn-cancel" data-dismiss="modal" aria-hidden="true">取消</button>
+								<button type="button" class="btn btn-info pull-right btn-save" data-dismiss="modal" aria-hidden="true">保存</button>
+							</div>
+							<!-- /.box-footer -->
+						</form>
+					</div>
+				</div>
+				<!-- /.modal-content -->
+			</div>
+			<!-- /.modal-dialog -->
+		</div>
+		<!-- /.modal -->
+	</div>
+</div>
+<script type="text/javascript">
+	
+	/***************************************window 加载完成事件，主要用户绑定dom对象事件*****************************************/
+	$(function() {
+		// 页面加载完成后将分页信息添加进来
+		$("#pageId").load("user/pageUI.do", function() {
+			// 分页加载完成后进行数据的加载
+			doGetObjects();
+		});
+		
+		// 为搜索框中的按钮绑定事件
+		$(".input-group-btn")
+		.on("click", ".btn-search", doQueryObjects)				// 搜索事件
+		.on("click", ".btn-add", doAddOrUpdate)					// 添加用户事件 
+		.on("click", ".btn-update", doAddOrUpdate)				// 修改用户事件
+		.on("click", ".btn-export-excel", doUsersExportExcel)	// 将用户信息导出到excel文件
+		.on("click", ".btn-export-pdf", doUsersExportPDF);		// 将用户信息导出到pdf文件
+
+		// 禁用或启用用户的点击事件
+		$("#tbodyId").on("click", ".btn-valid", doValidById);
+
+		// 初始化时隐藏模态视图
+		$("#myModal").modal('hide');
+		
+		// 加载模态视图中的角色信息
+		doLoadSysRoles();
+		
+		// 模态视图中的按钮点击事件
+		$("#myModal")
+		.on("click", ".btn-cancel", doCancel)
+		.on("click", ".btn-save", doSaveOrUpdate)
+		.on('hide.bs.modal', function(){			
+			$("input[type=reset]").trigger("click");
+		});;
+	});
+
+	/**************************************dom对象的点击事件*****************************************/
+	// 根据名称搜索用户信息
+	function doQueryObjects() {
+		$("#pageId").data("pageCurrent", 1);
+		doGetObjects();
+	}
+
+	// 添加或修改用户事件
+	function doAddOrUpdate() {
+		var title;
+		var flag = $(this).hasClass("btn-add");
+		if (flag) {
+			// 添加操作
+			title = "添加用户";
+		} else {
+			// 修改操作
+			title = "修改用户";
+			// 同步获取用户信息
+			flag = loadUserInfo();
+		}
+		if (!flag)
+			return;
+
+		/* $(".container-fluid").load("user/editUI.do", function() {
+			$(".box-title").html(title);
+		}); */
+		
+		//初始化用户信息(修改时)
+		doInitEditPageData();
+		// 使用模态视图弹出
+		$("#myModal").modal('show');
+	}
+
+	// 将用户导出到excel文件
+	function doUsersExportExcel() {
+		location.href = "user/doExportExcel.do?t=" + Math.random();
+	}
+
+	// 将用户导出到pdf文件
+	function doUsersExportPDF() {
+		location.href = "user/doExportPDF.do?t=" + Math.random();
+	}
+
+	// 禁用或启用用户的点击事件
+	function doValidById() {
+		var btn = $(this);
+		var user = btn.parents("tr").data("user");
+		var id = user.id;
+		var valid = user.valid;
+		var url = "user/doValidById.do";
+		var params = {
+			"id" : id,
+			"valid" : valid ? 0 : 1
+		};
+		$.post(url, params, function(result) {
+			if (result.state == 1) {
+				doEditRow(btn, valid ? 0 : 1);
+			} else {
+				alert(result.message);
+			}
+		});
+	}
+	
+	// 模态视图中的取消按钮点击事件
+	function doCancel() {	
+		console.log("doCancel");
+		$("#myModal").removeData();
+		$("#myModal").modal('hide');
+	}
+	
+	// 模态视图中的保存按钮点击事件，用于保存新增用户或保存修改用户
+	function doSaveOrUpdate() {
+		var username = $("#usernameId").val();
+		if (!username) {
+			alert("用户名不能为空");
+			return;
+		}
+		var password = $("#passwordId").val();
+		if (!password) {
+			alert("密码不能为空");
+			return;
+		}
+		var email = $("#emailId").val();
+		var emailReg = /^\w+@\w+\.[a-z]+(\.[a-z]+)?$/;
+		if (!emailReg.test(email)) {
+			alert("无效的邮箱");
+			return;
+		}
+		var phone = $("#phoneId").val();
+		var phoneReg = /^(\+86|0086)?\s*1[3578]\d{9}$/;
+		if (!phoneReg.test(phone)) {
+			alert("无效的手机号");
+			return;
+		}
+
+		var array = [];
+		$("input[name='roleItem']").each(function() {
+			if ($(this).prop("checked")) {
+				array.push($(this).val());
+			}
+		});
+		var roleIds = array.toString();
+		if (!roleIds) {
+			alert("请选择角色");
+			return;
+		}
+
+		var user = $("#myModal").data("user");
+		var url = "user/doSaveObject.do";
+		var params = {
+			"username" : username,
+			"password" : password,
+			"email" : email,
+			"mobile" : phone,
+			"roleIds" : roleIds
+		};
+		if (user) {
+			// 修改用户
+			url = "user/doUpdateObject.do";
+			params.id = user.user.id;
+		}
+		$.post(url, params, function(result) {
+			if (result.state == 1) {
+				doCancel();
+				// 取消后重新获取新的数据
+				doGetObjects();
+			} else {
+				alert(result.message);
+			}
+		});
+	}
+	
+	/***************************************common事件，用于逻辑的封装*****************************************/
+	// 调用接口获取用户信息
+	function loadUserInfo() {
+		var flag = false;
+		var id = getCheckedId();
+		if (!id) {
+			alert("请选择用户");
+			return flag;
+		}
+		$.ajax({
+			url : "user/doFindObjectById.do",
+			type : "POST",
+			data : {
+				"id" : id
+			},
+			dataType : "json",
+			async : false,
+			success : function(result) {
+				if (result.state == 1) {
+					$("#myModal").data("user", result.data);
+					flag = true;
+				} else {
+					alert(result.message);
+				}
+			}
+		});
+		return flag;
+	}
+
+	// 获取列表中单选的用户id
+	function getCheckedId() {
+		var id;
+		$("input[type='radio']").each(function() {
+			if ($(this).prop("checked")) {
+				id = $(this).val();
+			}
+		});
+		return id;
+	}
+
+	// 获取用户列表分页信息
+	function doGetObjects() {
+		var url = "user/doFindPageObjects.do";
+		var currentPage = $("#pageId").data("pageCurrent");
+		if (!currentPage) {
+			currentPage = 1;
+		}
+		var params = {
+			"currentPage" : currentPage,
+			"username" : $("#searchNameId").val()
+		};
+		console.log(params);
+		$.post(url, params, function(result) {
+			if (result.state == 1) {
+				// 更新分页组件
+				setPagination(result.data);
+				// 请求完成显示列表
+				setTableBodyRows(result.data.list);
+			} else {
+				alert(result.message);
+			}
+		});
+	}
+
+	// 为table进行数据填充
+	function setTableBodyRows(data) {
+		var tbody = $("#tbodyId");
+		tbody.empty();
+		for (var i = 0; i < data.length; i++) {
+			console.log(data[i]);
+			var tr = $("<tr></tr>");
+			tr.data("user", data[i]);
+			var tds = "<td><input type='radio' name='radioId' value='"+data[i].id+"'/></td>"
+					+ "<td>"
+					+ data[i].username
+					+ "</td>"
+					+ "<td>"
+					+ data[i].email
+					+ "</td>"
+					+ "<td>"
+					+ data[i].mobile
+					+ "</td>"
+					+ "<td>"
+					+ (data[i].valid ? "启用" : "禁用")
+					+ "</td>"
+					+ "<td>"
+					+ data[i].createdTime
+					+ "</td>"
+					+ "<td>"
+					+ data[i].modifiedTime
+					+ "</td>"
+					+ "<td><button type='button' class='btn btn-default btn-valid'>"
+					+ (data[i].valid ? "禁用" : "启用") + "</button></td>";
+			tr.append(tds);
+			tbody.append(tr);
+		}
+	}
+
+	// 禁用或启用用户后，更新每一行的数据信息
+	function doEditRow(btn, valid) {
+		btn.parents("tr").data("user").valid = valid;
+		btn.parent().siblings("td").eq(4).html(valid ? "启用" : "禁用");
+		btn.html(valid ? "禁用" : "启用");
+	}
+	
+	// 网页初始化成功后，需要显示模态视图中的角色数据信息
+	function doLoadSysRoles() {
+		var url = "role/doFindObjects.do";
+		$.post(url, function(result) {
+			if (result.state == 1) {
+				doInitDivSysRoles(result.data);
+			} else {
+				alert(result.message);
+			}
+		});
+	}
+	
+	// 模态视图中的角色信息获取完成后将其填充
+	function doInitDivSysRoles(data) {
+		var checkBox = "<input type='checkbox' name='roleItem' value='[id]'>[name]";
+		var div = $("#rolesId");
+		for ( var i in data) {
+			div.append(checkBox.replace("[id]", data[i].id).replace("[name]",
+					data[i].name));
+		}
+	}
+	
+	function doInitEditPageData() {
+		var data = $("#myModal").data("user");
+		if(data) {
+			var user = data.user;
+			$("#usernameId").val(user.username);
+			$("#passwordId").val(user.password);
+			$("#emailId").val(user.email);
+			$("#phoneId").val(user.mobile);
+
+			var roleIds = $("#myModal").data("user").roleIds;
+			for ( var i in roleIds) {
+				$("input[name='roleItem']").each(function() {
+					if ($(this).val() == roleIds[i]) {
+						$(this).prop("checked", true);
+					}
+				});
+			}
+		}
+	}
+</script>
+
+
+
+
